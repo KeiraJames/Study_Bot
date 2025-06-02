@@ -7,3 +7,4 @@ langchain-weaviate
 pypdf
 python-dotenv
 faiss-cpu
+google-generativeai
