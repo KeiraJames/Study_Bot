@@ -14,7 +14,7 @@ st.title("📄 Simple RAG with Google Gemini")
 def get_models(api_key):
     try:
         embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
-        llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=api_key, convert_system_message_to_human=True)
+        llm = ChatGoogleGenerativeAI(model="gemini-1.0-pro", google_api_key=api_key, convert_system_message_to_human=True)
         return embeddings, llm
     except Exception as e:
         st.error(f"Error initializing Google models: {e}")
