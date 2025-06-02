@@ -3,11 +3,13 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
-from langchain.docstore.document import Document
+from langchain.docstore.document import Document # To wrap raw text
 import google.generativeai as genai # Import the base Google library
+import os # For a potential environment variable for API key
 
 # --- Configuration ---
-# (Keep your st.set_page_config and st.title here)
+st.set_page_config(page_title="Simple RAG with Gemini", layout="wide")
+st.title("📄 Simple RAG with Google Gemini")
 
 # --- Helper function to initialize models (cached) ---
 @st.cache_resource
@@ -34,12 +36,14 @@ def get_models(api_key):
         # 2. Determine which chat model to use for Langchain
         # Langchain often expects model names *without* the "models/" prefix for ChatGoogleGenerativeAI
         chat_model_name_to_use = None
+        # Prioritized list of models we'd prefer to use with Langchain
         preferred_models_for_langchain = [
-            "gemini-1.5-pro-latest", # Try newest first
-            "gemini-pro",            # Common default
-            "gemini-1.0-pro",        # Specific version
+            "gemini-1.5-pro-latest",
+            "gemini-pro",
+            "gemini-1.0-pro",
             "gemini-1.0-pro-latest",
             "gemini-1.0-pro-001",
+            # Add other known compatible models here if needed
         ]
 
         # Check if any of our preferred models (without prefix) are available (by checking against API list with prefix)
@@ -51,34 +55,131 @@ def get_models(api_key):
         
         if not chat_model_name_to_use and available_chat_models_from_api:
             # If none of the preferred are found, take the first from the API list and adapt it
+            # This is a fallback and might not always work if Langchain doesn't recognize the model name
             first_available_from_api = available_chat_models_from_api[0]
             chat_model_name_to_use = first_available_from_api.replace("models/", "")
-            st.warning(f"Preferred Gemini models not found for Langchain. Using first available from API list: '{chat_model_name_to_use}' (derived from '{first_available_from_api}')")
+            st.warning(f"Preferred Gemini models for Langchain not found. Using first available from API list: '{chat_model_name_to_use}' (derived from '{first_available_from_api}')")
         
         if not chat_model_name_to_use:
-            st.error("Could not determine a suitable chat model to use. No compatible models found.")
+            st.error("Could not determine a suitable chat model to use. No compatible models found or preferred models are not available.")
             return None, None
 
         st.write(f"Attempting to use chat model for Langchain: '{chat_model_name_to_use}'")
 
         # 3. Initialize Langchain components
         embeddings_model_name = "models/embedding-001" # Usually stable
+        # Check if embedding model is available, though it's less problematic
+        if embeddings_model_name not in available_chat_models_from_api and "models/text-embedding-004" in available_chat_models_from_api:
+            embeddings_model_name = "models/text-embedding-004" # newer embedding model
+            st.info(f"Using '{embeddings_model_name}' for embeddings.")
+        elif "models/embedding-001" not in available_chat_models_from_api and "models/text-embedding-004" not in available_chat_models_from_api :
+             st.warning(f"Neither 'models/embedding-001' nor 'models/text-embedding-004' found in available models list. Embeddings might fail or use a different default.")
+
+
         embeddings = GoogleGenerativeAIEmbeddings(model=embeddings_model_name, google_api_key=api_key)
         llm = ChatGoogleGenerativeAI(model=chat_model_name_to_use, google_api_key=api_key, convert_system_message_to_human=True)
 
-        st.success(f"Embeddings ({embeddings_model_name}) and LLM ('{chat_model_name_to_use}') initialized successfully!")
+        st.success(f"Embeddings ('{embeddings_model_name}') and LLM ('{chat_model_name_to_use}') initialized successfully!")
         return embeddings, llm
 
     except Exception as e:
         # Catching if Langchain itself fails with the selected model
         st.error(f"Error during Google model initialization with Langchain (model: '{chat_model_name_to_use if 'chat_model_name_to_use' in locals() else 'unknown'}'): {e}")
-        st.error("This could mean the model selected from the list is still not compatible with Langchain's ChatGoogleGenerativeAI or there's another configuration issue.")
+        st.error("This could mean the model selected from the list is still not compatible with Langchain's ChatGoogleGenerativeAI or there's another configuration issue. Check the exact error message.")
         return None, None
 
 # --- Main Application ---
-# (The rest of your Streamlit app code from your previous version goes here)
-# Make sure to include:
-# st.set_page_config(...)
-# st.title(...)
-# google_api_key = st.text_input(...)
-# etc.
+
+# 1. Get Google API Key
+# Try to get from environment variable first, then from text input
+google_api_key_env = os.getenv("GOOGLE_API_KEY")
+google_api_key = st.text_input(
+    "Enter your Google API Key:",
+    type="password",
+    value=google_api_key_env if google_api_key_env else "",
+    help="Required for Gemini LLM and Embeddings. You can also set it as an environment variable GOOGLE_API_KEY."
+)
+
+if not google_api_key:
+    st.warning("Please enter your Google API Key to proceed.")
+    st.stop()
+
+# Initialize models
+embeddings_model, llm = get_models(google_api_key)
+
+if not embeddings_model or not llm:
+    st.error("Model initialization failed. Please check the messages above and your API key.")
+    st.stop()
+
+# 2. Input Document Context
+st.subheader("1. Provide Document Context")
+document_text = st.text_area("Paste your document text here:", height=200, key="doc_text")
+
+# Session state to store the vector store
+if 'vector_store' not in st.session_state:
+    st.session_state.vector_store = None
+if 'doc_processed_text' not in st.session_state: # To track if doc has changed
+    st.session_state.doc_processed_text = ""
+
+
+if document_text:
+    # Only re-process if the document text has changed
+    if document_text != st.session_state.doc_processed_text:
+        with st.spinner("Processing document..."):
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+            docs_for_splitting = [Document(page_content=document_text)]
+            chunks = text_splitter.split_documents(docs_for_splitting)
+
+            if chunks:
+                try:
+                    st.session_state.vector_store = FAISS.from_documents(chunks, embeddings_model)
+                    st.session_state.doc_processed_text = document_text # Update processed text
+                    st.success("Document processed and indexed in memory!")
+                except Exception as e:
+                    st.error(f"Error creating vector store: {e}")
+                    st.session_state.vector_store = None
+            else:
+                st.warning("No text chunks found to process.")
+                st.session_state.vector_store = None
+elif st.session_state.vector_store: # If text area is cleared, clear the vector store
+    st.session_state.vector_store = None
+    st.session_state.doc_processed_text = ""
+    st.info("Document context cleared.")
+
+
+# 3. Ask a Question
+st.subheader("2. Ask a Question")
+user_question = st.text_input("Enter your question about the document:", key="user_question")
+
+if st.button("Get Answer"):
+    if not st.session_state.vector_store:
+        st.warning("Please provide document text and process it first.")
+    elif not user_question:
+        st.warning("Please enter a question.")
+    else:
+        with st.spinner("Searching for answers..."):
+            try:
+                retriever = st.session_state.vector_store.as_retriever()
+                qa_chain = RetrievalQA.from_chain_type(
+                    llm=llm,
+                    chain_type="stuff",
+                    retriever=retriever,
+                    return_source_documents=True
+                )
+
+                response = qa_chain.invoke({"query": user_question})
+
+                st.subheader("💡 Answer:")
+                st.write(response["result"])
+
+                with st.expander("Show Retrieved Context (Source Chunks)"):
+                    for i, doc in enumerate(response["source_documents"]):
+                        st.markdown(f"**Chunk {i+1}:**")
+                        st.caption(doc.page_content)
+
+            except Exception as e:
+                st.error(f"Error during Q&A: {e}")
+                st.info("This could be an issue with the LLM, the retriever, or the API.")
+
+st.markdown("---")
+st.caption("A simple RAG implementation using Gemini and FAISS (in-memory).")
