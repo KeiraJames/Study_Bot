@@ -1,5 +1,8 @@
 streamlit
 langchain
 langchain-community
+langchain-google-genai
+weaviate-client
+langchain-weaviate
 pypdf
 python-dotenv
