@@ -1,10 +1,7 @@
 streamlit
 langchain
-langchain-community
-langchain-google-genai
-weaviate-client
-langchain-weaviate
-pypdf
-python-dotenv
+langchain-google-genai>=0.1.0  # Specify a recent enough version
+google-generativeai>=0.4.0   # Specify a recent enough version
 faiss-cpu
-google-generativeai
+sentence-transformers        
+python-dotenv               
