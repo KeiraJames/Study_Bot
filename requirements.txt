@@ -1,7 +1,8 @@
 streamlit
 langchain
-langchain-google-genai>=0.1.0  # Specify a recent enough version
-google-generativeai>=0.4.0   # Specify a recent enough version
+langchain-community  # <-- ADD THIS
+langchain-google-genai>=0.1.0
+google-generativeai>=0.4.0
 faiss-cpu
-sentence-transformers        
-python-dotenv               
+sentence-transformers
+python-dotenv
