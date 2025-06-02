@@ -34,19 +34,15 @@ def get_models(api_key):
             return None, None
 
         # 2. Determine which chat model to use for Langchain
-        # Langchain often expects model names *without* the "models/" prefix for ChatGoogleGenerativeAI
         chat_model_name_to_use = None
-        # Prioritized list of models we'd prefer to use with Langchain
         preferred_models_for_langchain = [
-            "gemini-1.5-pro-latest",
+            "gemini-1.5-pro-latest", # This should be found given your list
             "gemini-pro",
             "gemini-1.0-pro",
             "gemini-1.0-pro-latest",
             "gemini-1.0-pro-001",
-            # Add other known compatible models here if needed
         ]
 
-        # Check if any of our preferred models (without prefix) are available (by checking against API list with prefix)
         for preferred_lc_model in preferred_models_for_langchain:
             if f"models/{preferred_lc_model}" in available_chat_models_from_api:
                 chat_model_name_to_use = preferred_lc_model
@@ -54,8 +50,6 @@ def get_models(api_key):
                 break
         
         if not chat_model_name_to_use and available_chat_models_from_api:
-            # If none of the preferred are found, take the first from the API list and adapt it
-            # This is a fallback and might not always work if Langchain doesn't recognize the model name
             first_available_from_api = available_chat_models_from_api[0]
             chat_model_name_to_use = first_available_from_api.replace("models/", "")
             st.warning(f"Preferred Gemini models for Langchain not found. Using first available from API list: '{chat_model_name_to_use}' (derived from '{first_available_from_api}')")
@@ -67,13 +61,17 @@ def get_models(api_key):
         st.write(f"Attempting to use chat model for Langchain: '{chat_model_name_to_use}'")
 
         # 3. Initialize Langchain components
-        embeddings_model_name = "models/embedding-001" # Usually stable
-        # Check if embedding model is available, though it's less problematic
-        if embeddings_model_name not in available_chat_models_from_api and "models/text-embedding-004" in available_chat_models_from_api:
-            embeddings_model_name = "models/text-embedding-004" # newer embedding model
-            st.info(f"Using '{embeddings_model_name}' for embeddings.")
-        elif "models/embedding-001" not in available_chat_models_from_api and "models/text-embedding-004" not in available_chat_models_from_api :
-             st.warning(f"Neither 'models/embedding-001' nor 'models/text-embedding-004' found in available models list. Embeddings might fail or use a different default.")
+        embeddings_model_name = "models/embedding-001"
+        # Check available embedding models - your list didn't explicitly show embedding models,
+        # but genai.list_models() might list them separately or they might just work.
+        # 'models/text-embedding-004' is a newer one.
+        # If genai.list_models() only shows chat models, we assume embedding models are accessible.
+        # A more robust check would list models for 'embedContent' method.
+        if "models/text-embedding-004" in available_chat_models_from_api: # Checking against chat models list is not ideal but a proxy
+             embeddings_model_name = "models/text-embedding-004"
+             st.info(f"Found 'models/text-embedding-004' in general list, attempting to use for embeddings.")
+        elif "models/embedding-001" not in available_chat_models_from_api and "models/text-embedding-004" not in available_chat_models_from_api:
+             st.warning(f"Neither 'models/embedding-001' nor 'models/text-embedding-004' explicitly found in listed models. Using default '{embeddings_model_name}'. Embeddings might fail if not accessible.")
 
 
         embeddings = GoogleGenerativeAIEmbeddings(model=embeddings_model_name, google_api_key=api_key)
@@ -83,15 +81,11 @@ def get_models(api_key):
         return embeddings, llm
 
     except Exception as e:
-        # Catching if Langchain itself fails with the selected model
-        st.error(f"Error during Google model initialization with Langchain (model: '{chat_model_name_to_use if 'chat_model_name_to_use' in locals() else 'unknown'}'): {e}")
-        st.error("This could mean the model selected from the list is still not compatible with Langchain's ChatGoogleGenerativeAI or there's another configuration issue. Check the exact error message.")
+        st.error(f"Error during Google model initialization with Langchain (LLM model tried: '{chat_model_name_to_use if 'chat_model_name_to_use' in locals() else 'unknown'}', Embedding model tried: '{embeddings_model_name if 'embeddings_model_name' in locals() else 'unknown'}'): {e}")
+        st.error("This could mean the model selected from the list is still not compatible with Langchain's wrappers or there's another configuration issue. Check the exact error message.")
         return None, None
 
 # --- Main Application ---
-
-# 1. Get Google API Key
-# Try to get from environment variable first, then from text input
 google_api_key_env = os.getenv("GOOGLE_API_KEY")
 google_api_key = st.text_input(
     "Enter your Google API Key:",
@@ -104,26 +98,21 @@ if not google_api_key:
     st.warning("Please enter your Google API Key to proceed.")
     st.stop()
 
-# Initialize models
 embeddings_model, llm = get_models(google_api_key)
 
 if not embeddings_model or not llm:
     st.error("Model initialization failed. Please check the messages above and your API key.")
     st.stop()
 
-# 2. Input Document Context
 st.subheader("1. Provide Document Context")
 document_text = st.text_area("Paste your document text here:", height=200, key="doc_text")
 
-# Session state to store the vector store
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
-if 'doc_processed_text' not in st.session_state: # To track if doc has changed
+if 'doc_processed_text' not in st.session_state:
     st.session_state.doc_processed_text = ""
 
-
 if document_text:
-    # Only re-process if the document text has changed
     if document_text != st.session_state.doc_processed_text:
         with st.spinner("Processing document..."):
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
@@ -133,7 +122,7 @@ if document_text:
             if chunks:
                 try:
                     st.session_state.vector_store = FAISS.from_documents(chunks, embeddings_model)
-                    st.session_state.doc_processed_text = document_text # Update processed text
+                    st.session_state.doc_processed_text = document_text
                     st.success("Document processed and indexed in memory!")
                 except Exception as e:
                     st.error(f"Error creating vector store: {e}")
@@ -141,13 +130,11 @@ if document_text:
             else:
                 st.warning("No text chunks found to process.")
                 st.session_state.vector_store = None
-elif st.session_state.vector_store: # If text area is cleared, clear the vector store
+elif st.session_state.vector_store:
     st.session_state.vector_store = None
     st.session_state.doc_processed_text = ""
     st.info("Document context cleared.")
 
-
-# 3. Ask a Question
 st.subheader("2. Ask a Question")
 user_question = st.text_input("Enter your question about the document:", key="user_question")
 
@@ -166,17 +153,13 @@ if st.button("Get Answer"):
                     retriever=retriever,
                     return_source_documents=True
                 )
-
                 response = qa_chain.invoke({"query": user_question})
-
                 st.subheader("💡 Answer:")
                 st.write(response["result"])
-
                 with st.expander("Show Retrieved Context (Source Chunks)"):
                     for i, doc in enumerate(response["source_documents"]):
                         st.markdown(f"**Chunk {i+1}:**")
                         st.caption(doc.page_content)
-
             except Exception as e:
                 st.error(f"Error during Q&A: {e}")
                 st.info("This could be an issue with the LLM, the retriever, or the API.")
