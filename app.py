@@ -35,9 +35,13 @@ def get_models(api_key):
 
         # 2. Determine which chat model to use for Langchain
         chat_model_name_to_use = None
+        # Prioritize flash models if available
         preferred_models_for_langchain = [
-            "gemini-1.5-pro-latest", # This should be found given your list
-            "gemini-pro",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro-latest",
+            "gemini-1.5-pro",
+            "gemini-pro", # General name, might map to a specific version
             "gemini-1.0-pro",
             "gemini-1.0-pro-latest",
             "gemini-1.0-pro-001",
@@ -46,10 +50,11 @@ def get_models(api_key):
         for preferred_lc_model in preferred_models_for_langchain:
             if f"models/{preferred_lc_model}" in available_chat_models_from_api:
                 chat_model_name_to_use = preferred_lc_model
-                st.write(f"Found preferred model for Langchain: '{chat_model_name_to_use}'")
+                st.write(f"Found preferred model for Langchain: '{chat_model_name_to_use}' (based on API list having 'models/{preferred_lc_model}')")
                 break
         
         if not chat_model_name_to_use and available_chat_models_from_api:
+            # Fallback if no preferred models are found
             first_available_from_api = available_chat_models_from_api[0]
             chat_model_name_to_use = first_available_from_api.replace("models/", "")
             st.warning(f"Preferred Gemini models for Langchain not found. Using first available from API list: '{chat_model_name_to_use}' (derived from '{first_available_from_api}')")
@@ -61,23 +66,28 @@ def get_models(api_key):
         st.write(f"Attempting to use chat model for Langchain: '{chat_model_name_to_use}'")
 
         # 3. Initialize Langchain components
+        # Standard embedding model. You can add logic to check for 'models/text-embedding-004' if preferred and available.
         embeddings_model_name = "models/embedding-001"
-        # Check available embedding models - your list didn't explicitly show embedding models,
-        # but genai.list_models() might list them separately or they might just work.
-        # 'models/text-embedding-004' is a newer one.
-        # If genai.list_models() only shows chat models, we assume embedding models are accessible.
-        # A more robust check would list models for 'embedContent' method.
-        if "models/text-embedding-004" in available_chat_models_from_api: # Checking against chat models list is not ideal but a proxy
-             embeddings_model_name = "models/text-embedding-004"
-             st.info(f"Found 'models/text-embedding-004' in general list, attempting to use for embeddings.")
-        elif "models/embedding-001" not in available_chat_models_from_api and "models/text-embedding-004" not in available_chat_models_from_api:
-             st.warning(f"Neither 'models/embedding-001' nor 'models/text-embedding-004' explicitly found in listed models. Using default '{embeddings_model_name}'. Embeddings might fail if not accessible.")
+        
+        # A more robust way to check for embedding model availability:
+        available_embedding_models_from_api = []
+        try:
+            for m in genai.list_models(): # List models again specifically for embedContent
+                if 'embedContent' in m.supported_generation_methods:
+                    available_embedding_models_from_api.append(m.name)
+            if "models/text-embedding-004" in available_embedding_models_from_api:
+                embeddings_model_name = "models/text-embedding-004"
+                st.info(f"Using '{embeddings_model_name}' for embeddings as it's available and preferred.")
+            elif "models/embedding-001" not in available_embedding_models_from_api and embeddings_model_name == "models/embedding-001":
+                 st.warning(f"Default embedding model '{embeddings_model_name}' not explicitly found in list supporting 'embedContent'. Using it anyway, but it might fail.")
+        except Exception as list_e_embed:
+             st.warning(f"Could not specifically list models for 'embedContent': {list_e_embed}. Using default embedding model '{embeddings_model_name}'.")
 
 
         embeddings = GoogleGenerativeAIEmbeddings(model=embeddings_model_name, google_api_key=api_key)
         llm = ChatGoogleGenerativeAI(model=chat_model_name_to_use, google_api_key=api_key, convert_system_message_to_human=True)
 
-        st.success(f"Embeddings ('{embeddings_model_name}') and LLM ('{chat_model_name_to_use}') initialized successfully!")
+        st.success(f"Successfully connected to Gemini API. Using LLM: '{chat_model_name_to_use}', Embeddings: '{embeddings_model_name}'")
         return embeddings, llm
 
     except Exception as e:
@@ -130,7 +140,7 @@ if document_text:
             else:
                 st.warning("No text chunks found to process.")
                 st.session_state.vector_store = None
-elif st.session_state.vector_store:
+elif st.session_state.vector_store: # If text area is cleared, clear the vector store
     st.session_state.vector_store = None
     st.session_state.doc_processed_text = ""
     st.info("Document context cleared.")
