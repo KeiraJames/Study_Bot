@@ -30,8 +30,6 @@ def get_models(api_key):
 
 
 
-
-
 # --- Main Application ---
 google_api_key_env = os.getenv("GOOGLE_API_KEY")
 google_api_key = "AIzaSyDMYArQqF4gjHTVXAVmcwEGwMG4iZDKRh4"
@@ -39,9 +37,6 @@ google_api_key = "AIzaSyDMYArQqF4gjHTVXAVmcwEGwMG4iZDKRh4"
 
 embeddings_model, llm = get_models(google_api_key)
 
-if not embeddings_model or not llm:
-    st.error("Model initialization failed. Please check the messages above and your API key.")
-    st.stop()
 
 st.subheader("1. Provide Document Context")
 document_text = st.text_area("Paste your document text here:", height=200, key="doc_text")
@@ -104,4 +99,4 @@ if st.button("Get Answer"):
                 st.info("This could be an issue with the LLM, the retriever, or the API.")
 
 st.markdown("---")
-st.caption("A simple RAG implementation using Gemini and FAISS (in-memory).")
+st.caption("A simple RAG implementation using Gemini and FAISS .")
