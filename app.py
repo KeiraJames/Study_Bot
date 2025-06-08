@@ -21,11 +21,9 @@ def get_models(api_key):
         embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=api_key)
         llm = ChatGoogleGenerativeAI(model='gemini-1.5-flash-latest', google_api_key=api_key, convert_system_message_to_human=True)
 
-        st.success(f"Successfully connected to Gemini API. Using LLM: '{chat_model_name_to_use}', Embeddings: '{embeddings_model_name}'")
         return embeddings, llm
 
     except Exception as e:
-        st.error(f"Error during Google model initialization with Langchain (LLM model tried: '{chat_model_name_to_use if 'chat_model_name_to_use' in locals() else 'unknown'}', Embedding model tried: '{embeddings_model_name if 'embeddings_model_name' in locals() else 'unknown'}'): {e}")
         st.error("This could mean the model selected from the list is still not compatible with Langchain's wrappers or there's another configuration issue. Check the exact error message.")
         return None, None
 
