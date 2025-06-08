@@ -5,16 +5,15 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain.docstore.document import Document # To wrap raw text
 import google.generativeai as genai # Import the base Google library
-import os # For a potential environment variable for API key
+import os 
 
 # --- Configuration ---
 st.set_page_config(page_title="Simple RAG with Gemini", layout="wide")
-st.title("📄 Simple RAG with Google Gemini")
+st.title("📄 Study Bot")
 
 # --- Helper function to initialize models (cached) ---
 @st.cache_resource
 def get_models(api_key):
-    st.write("Attempting to initialize Google models...")
     try:
         # 1. Configure the base client for listing models
         genai.configure(api_key=api_key)
@@ -97,16 +96,8 @@ def get_models(api_key):
 
 # --- Main Application ---
 google_api_key_env = os.getenv("GOOGLE_API_KEY")
-google_api_key = st.text_input(
-    "Enter your Google API Key:",
-    type="password",
-    value=google_api_key_env if google_api_key_env else "",
-    help="Required for Gemini LLM and Embeddings. You can also set it as an environment variable GOOGLE_API_KEY."
-)
+google_api_key = "AIzaSyDMYArQqF4gjHTVXAVmcwEGwMG4iZDKRh4"
 
-if not google_api_key:
-    st.warning("Please enter your Google API Key to proceed.")
-    st.stop()
 
 embeddings_model, llm = get_models(google_api_key)
 
