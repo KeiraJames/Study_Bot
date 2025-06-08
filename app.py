@@ -17,7 +17,6 @@ def get_models(api_key):
     try:
         # 1. Configure the base client for listing models
         genai.configure(api_key=api_key)
-        st.write("Google API client configured. Listing available models that support 'generateContent':")
 
         available_chat_models_from_api = []
         try:
@@ -29,7 +28,6 @@ def get_models(api_key):
                 return None, None
             st.info(f"Available models for chat (from genai.list_models()): {available_chat_models_from_api}")
         except Exception as list_e:
-            st.error(f"Could not list models using genai.list_models(): {list_e}. This might indicate a more fundamental API key or project setup issue.")
             return None, None
 
         # 2. Determine which chat model to use for Langchain
@@ -46,11 +44,8 @@ def get_models(api_key):
             "gemini-1.0-pro-001",
         ]
 
-        for preferred_lc_model in preferred_models_for_langchain:
-            if f"models/{preferred_lc_model}" in available_chat_models_from_api:
-                chat_model_name_to_use = preferred_lc_model
-                st.write(f"Found preferred model for Langchain: '{chat_model_name_to_use}' (based on API list having 'models/{preferred_lc_model}')")
-                break
+      
+        chat_model_name_to_use =  'gemini-1.5-flash-latest'
         
         if not chat_model_name_to_use and available_chat_models_from_api:
             # Fallback if no preferred models are found
