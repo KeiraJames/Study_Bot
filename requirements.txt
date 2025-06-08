@@ -6,3 +6,4 @@ google-generativeai>=0.4.0
 faiss-cpu
 sentence-transformers
 python-dotenv
+pypdf
