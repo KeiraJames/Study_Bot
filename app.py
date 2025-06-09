@@ -215,7 +215,6 @@ elif st.session_state.page == "Quiz Me":
     if not st.session_state.text_content:
         st.info("Please go to the 'RAG Q&A' page to upload a document first.")
     else:
-        ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
         st.subheader("Create Your Quiz")
         st.divider()
         with st.container(border=True):
@@ -230,7 +229,7 @@ elif st.session_state.page == "Quiz Me":
                 st.rerun()
 
         if st.session_state.quiz_data:
-            ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
+            
             st.subheader("Your Custom Quiz")
             st.divider()
 
@@ -246,7 +245,6 @@ elif st.session_state.page == "Quiz Me":
                         st.session_state.user_answers = user_answers
                         st.rerun()
             else:
-                ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
                 st.subheader("📝 Quiz Results")
                 st.divider()
                 score = 0
