@@ -16,72 +16,55 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-def apply_custom_theme():
-    """Applies a custom blue and yellow theme to the app."""
-    # Using st.markdown to inject custom CSS for finer control
+### <<< CHANGE: Custom CSS function to inject advanced styles >>> ###
+def apply_custom_styles():
+    """Applies custom CSS for sidebar, fonts, and gradient dividers."""
+    # The theme colors are from your config.toml, but we can override/enhance with CSS
     custom_css = """
     <style>
-        /* Define theme variables */
-        :root {
-            --primary-color: #4A90E2;      /* Professional Blue */
-            --background-color: #F0F8FF;   /* AliceBlue (very light) */
-            --secondary-background-color: #EBF5FF; /* Slightly darker blue */
-            --text-color: #0F172A;         /* Slate-900 (dark text) */
-            --accent-color: #F7B500;       /* Amber/Gold */
-        }
+        /* Import the 'Lato' font from Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');
 
-        /* Apply theme to the body */
-        body {
-            background-color: var(--background-color);
-            color: var(--text-color);
-        }
-
-        /* Style the main content area */
-        .main .block-container {
-            background-color: var(--background-color);
-        }
-
-        /* Style the sidebar */
+        /* Set the sidebar background to the accent color */
         .st-emotion-cache-16txtl3 {
-            background-color: var(--secondary-background-color);
+            background-color: #f7b500; /* Accent Yellow/Gold */
         }
 
-        /* Style Streamlit's buttons */
-        .stButton>button {
-            border-color: var(--primary-color);
-            background-color: var(--primary-color);
-            color: white;
-        }
-        .stButton>button:hover {
-            border-color: #357ABD;
-            background-color: #357ABD;
-        }
-
-        /* Style the header dividers with the accent color */
+        /* Style for the custom gradient dividers */
         hr {
-            background: linear-gradient(to right, var(--accent-color), var(--primary-color));
+            background: linear-gradient(to right, #4a90e2, #f7b500); /* Blue to Yellow */
             height: 3px !important;
             border: none;
+            margin-top: 5px;
+            margin-bottom: 25px;
         }
 
-        /* Style headers */
+        /* Adjust header colors for better contrast and style on the new background */
         h1, h2 {
-            color: #1E3A8A; /* Darker blue for headers */
+            color: #FFFFFF; /* White for high contrast on the dusky blue background */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         h3 {
-            color: #2563EB; /* Primary blue for sub-headers */
+            color: #F0F8FF; /* AliceBlue (off-white) for sub-headers */
         }
 
-        /* Style success and info boxes */
-        [data-testid="stSuccess"], [data-testid="stInfo"] {
-             border-left: 5px solid var(--accent-color) !important;
+        /* Ensure sidebar buttons are readable on the yellow background */
+        .st-emotion-cache-16txtl3 .stButton>button {
+            background-color: #1E3A8A; /* Dark Blue */
+            color: white;
+            border-color: #1E3A8A;
         }
+        .st-emotion-cache-16txtl3 .stButton>button:hover {
+            background-color: #2563EB;
+            border-color: #2563EB;
+        }
+
     </style>
     """
     st.markdown(custom_css, unsafe_allow_html=True)
 
-# Apply the theme at the very top of the script
-apply_custom_theme()
+# Apply the theme enhancements
+apply_custom_styles()
 
 st.title("📚 Study Bot Pro")
 
@@ -93,7 +76,6 @@ except KeyError:
     st.stop()
 
 # --- Helper Functions & Model Initialization (No changes in logic) ---
-
 @st.cache_resource
 def get_models(api_key):
     """Initializes and caches the LangChain models."""
@@ -121,9 +103,6 @@ def extract_text_from_pdf(pdf_file):
 
 def generate_quiz_with_explanations(context_text, num_questions, difficulty, llm):
     """Generates a quiz with detailed explanations using the Gemini LLM."""
-    if not llm:
-        st.error("LLM not initialized. Cannot generate quiz.")
-        return None
     prompt = f"""
     You are an expert educator and quiz designer. Based on the following text, create a multiple-choice quiz.
     **Instructions:**
@@ -133,8 +112,6 @@ def generate_quiz_with_explanations(context_text, num_questions, difficulty, llm
     4. **Crucially, for each question, provide a detailed 'explanation' that explains why the correct answer is right, directly referencing concepts from the provided text.**
     5. Your entire response must be a single, valid JSON object. The object must have a single key "questions" which is a list of question objects.
     6. Each question object must have these exact keys: "question", "options", "answer", "explanation".
-    7. The "options" value must be a dictionary with keys "A", "B", "C", "D".
-    8. The "answer" value must be the letter of the correct option (e.g., "B").
     ---
     **TEXT TO ANALYZE:**
     {context_text}
@@ -145,10 +122,6 @@ def generate_quiz_with_explanations(context_text, num_questions, difficulty, llm
         quiz_json_string = response.content.replace("```json", "").replace("```", "").strip()
         quiz_data = json.loads(quiz_json_string)
         return quiz_data.get("questions", [])
-    except json.JSONDecodeError:
-        st.error("AI returned an invalid format. Please try generating the quiz again.", icon="🧩")
-        st.write("Raw AI response for debugging:", quiz_json_string)
-        return None
     except Exception as e:
         st.error(f"An error occurred while generating the quiz: {e}", icon="💥")
         return None
@@ -157,27 +130,22 @@ def generate_quiz_with_explanations(context_text, num_questions, difficulty, llm
 embeddings_model, llm = get_models(GOOGLE_API_KEY)
 
 # --- Session State Initialization ---
-if 'page' not in st.session_state:
-    st.session_state.page = "RAG Q&A"
-if 'text_content' not in st.session_state:
-    st.session_state.text_content = ""
-if 'vector_store' not in st.session_state:
-    st.session_state.vector_store = None
-if 'quiz_data' not in st.session_state:
-    st.session_state.quiz_data = None
-if 'quiz_submitted' not in st.session_state:
-    st.session_state.quiz_submitted = False
-if 'user_answers' not in st.session_state:
-    st.session_state.user_answers = {}
+# (No changes needed here)
+if 'page' not in st.session_state: st.session_state.page = "RAG Q&A"
+if 'text_content' not in st.session_state: st.session_state.text_content = ""
+if 'vector_store' not in st.session_state: st.session_state.vector_store = None
+if 'quiz_data' not in st.session_state: st.session_state.quiz_data = None
+if 'quiz_submitted' not in st.session_state: st.session_state.quiz_submitted = False
+if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
 
 # =================================================================================================
 # --- SIDEBAR: Navigation and Status ---
 # =================================================================================================
 st.sidebar.title("Navigation")
 st.sidebar.divider()
-if st.sidebar.button("RAG Q&A", use_container_width=True, type="secondary" if st.session_state.page != "RAG Q&A" else "primary"):
+if st.sidebar.button("RAG Q&A", use_container_width=True):
     st.session_state.page = "RAG Q&A"
-if st.sidebar.button("Quiz Me", use_container_width=True, type="secondary" if st.session_state.page != "Quiz Me" else "primary"):
+if st.sidebar.button("Quiz Me", use_container_width=True):
     st.session_state.page = "Quiz Me"
 
 st.sidebar.divider()
@@ -196,7 +164,10 @@ if st.session_state.page == "RAG Q&A":
     st.header("💬 Ask Questions About Your Document")
     st.write("Start by providing your study material below. Once processed, you can ask questions or switch to the 'Quiz Me' page.")
 
-    st.subheader("1. Provide Your Document", divider="blue")
+    ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
+    st.subheader("1. Provide Your Document")
+    st.divider()
+    
     input_method = st.radio("Choose input method:", ("Upload a File", "Paste Text"), horizontal=True)
     document_text = ""
     if input_method == "Upload a File":
@@ -223,7 +194,10 @@ if st.session_state.page == "RAG Q&A":
                 st.warning("Could not process document.", icon="⚠️")
         st.rerun()
 
-    st.subheader("2. Ask a Question", divider="blue")
+    ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
+    st.subheader("2. Ask a Question")
+    st.divider()
+
     if not st.session_state.vector_store:
         st.info("Please provide a document above to enable the Q&A feature.")
     else:
@@ -251,7 +225,9 @@ elif st.session_state.page == "Quiz Me":
     if not st.session_state.text_content:
         st.info("Please go to the 'RAG Q&A' page to upload a document first.")
     else:
-        st.subheader("Create Your Quiz", divider="blue")
+        ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
+        st.subheader("Create Your Quiz")
+        st.divider()
         with st.container(border=True):
             col1, col2 = st.columns(2)
             num_questions = col1.number_input("Number of Questions:", min_value=1, max_value=20, value=5)
@@ -264,7 +240,10 @@ elif st.session_state.page == "Quiz Me":
                 st.rerun()
 
         if st.session_state.quiz_data:
-            st.subheader("Your Custom Quiz", divider="blue")
+            ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
+            st.subheader("Your Custom Quiz")
+            st.divider()
+
             if not st.session_state.quiz_submitted:
                 with st.form("quiz_form"):
                     user_answers = {}
@@ -277,7 +256,9 @@ elif st.session_state.page == "Quiz Me":
                         st.session_state.user_answers = user_answers
                         st.rerun()
             else:
+                ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
                 st.subheader("📝 Quiz Results")
+                st.divider()
                 score = 0
                 for i, q in enumerate(st.session_state.quiz_data):
                     with st.container(border=True):
@@ -292,7 +273,8 @@ elif st.session_state.page == "Quiz Me":
                             st.info(f"Correct answer: **{correct_answer_text}**")
                         st.info(f"**Explanation:** {q['explanation']}")
                 
-                st.header(f"Your Final Score: {score}/{len(st.session_state.quiz_data)}", divider="blue")
+                st.header(f"Your Final Score: {score}/{len(st.session_state.quiz_data)}")
+                st.divider()
                 if st.button("Take a New Quiz"):
                     st.session_state.quiz_data = None
                     st.session_state.quiz_submitted = False
