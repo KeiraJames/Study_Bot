@@ -1,0 +1,6 @@
+[theme]
+primaryColor="#4a90e2"
+backgroundColor="#8fb4d4"
+secondaryBackgroundColor="#f7b500" # This will be overridden for the sidebar, but is good practice to set
+textColor="#0f172a"
+font="Lato"
