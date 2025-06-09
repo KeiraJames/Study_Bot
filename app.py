@@ -11,7 +11,7 @@ from langchain.docstore.document import Document
 
 # --- Page & Theme Configuration ---
 st.set_page_config(
-    page_title="hi",
+    page_title="Study Bot",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -66,7 +66,7 @@ def apply_custom_styles():
 # Apply the theme enhancements
 apply_custom_styles()
 
-st.title("📚 Study Bot")
+#st.title("📚 Study Bot")
 
 
 GOOGLE_API_KEY = "AIzaSyDMYArQqF4gjHTVXAVmcwEGwMG4iZDKRh4"
