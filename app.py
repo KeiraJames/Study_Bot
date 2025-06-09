@@ -11,15 +11,15 @@ from langchain.docstore.document import Document
 
 # --- Page & Theme Configuration ---
 st.set_page_config(
-    page_title="Study Bot Pro",
+    page_title="hi",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-### <<< CHANGE: Custom CSS function to inject advanced styles >>> ###
+
 def apply_custom_styles():
-    """Applies custom CSS for sidebar, fonts, and gradient dividers."""
-    # The theme colors are from your config.toml, but we can override/enhance with CSS
+ 
+
     custom_css = """
     <style>
         /* Import the 'Lato' font from Google Fonts */
@@ -66,31 +66,27 @@ def apply_custom_styles():
 # Apply the theme enhancements
 apply_custom_styles()
 
-st.title("📚 Study Bot Pro")
+st.title("📚 Study Bot")
 
-# --- Google API Key Setup ---
-try:
-    GOOGLE_API_KEY = "AIzaSyDMYArQqF4gjHTVXAVmcwEGwMG4iZDKRh4"
-except KeyError:
-    st.error("Google API Key not found! Please add it to your Streamlit secrets.", icon="🚨")
-    st.stop()
+
+GOOGLE_API_KEY = "AIzaSyDMYArQqF4gjHTVXAVmcwEGwMG4iZDKRh4"
 
 # --- Helper Functions & Model Initialization (No changes in logic) ---
 @st.cache_resource
 def get_models(api_key):
-    """Initializes and caches the LangChain models."""
-    try:
-        genai.configure(api_key=api_key)
-        embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=api_key)
-        llm = ChatGoogleGenerativeAI(model='gemini-1.5-flash-latest', google_api_key=api_key,
-                                     convert_system_message_to_human=True, temperature=0.2)
-        return embeddings, llm
-    except Exception as e:
-        st.error(f"Error initializing Google models: {e}", icon="🔥")
-        return None, None
+    
+    genai.configure(api_key=api_key)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=api_key)
+    llm = ChatGoogleGenerativeAI(
+            model='gemini-1.5-flash-latest', 
+            google_api_key=api_key,
+            convert_system_message_to_human=True, 
+            temperature=0.2
+    )
+    return embeddings, llm
+   
 
-def extract_text_from_pdf(pdf_file):
-    """Extracts text from an uploaded PDF file."""
+def extract_text_from_pdf(pdf_file): 
     try:
         pdf_reader = pypdf.PdfReader(pdf_file)
         text = ""
@@ -102,7 +98,7 @@ def extract_text_from_pdf(pdf_file):
         return None
 
 def generate_quiz_with_explanations(context_text, num_questions, difficulty, llm):
-    """Generates a quiz with detailed explanations using the Gemini LLM."""
+   
     prompt = f"""
     You are an expert educator and quiz designer. Based on the following text, create a multiple-choice quiz.
     **Instructions:**
@@ -116,21 +112,17 @@ def generate_quiz_with_explanations(context_text, num_questions, difficulty, llm
     **TEXT TO ANALYZE:**
     {context_text}
     ---
-    """
-    try:
-        response = llm.invoke(prompt)
-        quiz_json_string = response.content.replace("```json", "").replace("```", "").strip()
-        quiz_data = json.loads(quiz_json_string)
-        return quiz_data.get("questions", [])
-    except Exception as e:
-        st.error(f"An error occurred while generating the quiz: {e}", icon="💥")
-        return None
+    """ 
+
+    response = llm.invoke(prompt)
+    quiz_json_string = response.content.replace("```json", "").replace("```", "").strip()
+    quiz_data = json.loads(quiz_json_string)
+    return quiz_data.get("questions", [])
+    
 
 # --- Initialize Models ---
 embeddings_model, llm = get_models(GOOGLE_API_KEY)
 
-# --- Session State Initialization ---
-# (No changes needed here)
 if 'page' not in st.session_state: st.session_state.page = "RAG Q&A"
 if 'text_content' not in st.session_state: st.session_state.text_content = ""
 if 'vector_store' not in st.session_state: st.session_state.vector_store = None
@@ -162,9 +154,8 @@ else:
 # --- RAG Q&A PAGE ---
 if st.session_state.page == "RAG Q&A":
     st.header("💬 Ask Questions About Your Document")
-    st.write("Start by providing your study material below. Once processed, you can ask questions or switch to the 'Quiz Me' page.")
 
-    ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
+  
     st.subheader("1. Provide Your Document")
     st.divider()
     
@@ -189,12 +180,11 @@ if st.session_state.page == "RAG Q&A":
             chunks = text_splitter.split_documents([Document(page_content=st.session_state.text_content)])
             if chunks and embeddings_model:
                 st.session_state.vector_store = FAISS.from_documents(chunks, embeddings_model)
-                st.success("Document processed successfully!", icon="✅")
             else:
                 st.warning("Could not process document.", icon="⚠️")
         st.rerun()
 
-    ### <<< CHANGE: Replaced divider='...' with st.divider() >>> ###
+    
     st.subheader("2. Ask a Question")
     st.divider()
 
@@ -206,7 +196,7 @@ if st.session_state.page == "RAG Q&A":
             if not user_question:
                 st.warning("Please enter a question.", icon="❓")
             else:
-                with st.spinner("🔍 Searching for answers..."):
+                with st.spinner(" Searching for answers..."):
                     retriever = st.session_state.vector_store.as_retriever()
                     qa_chain = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents=True)
                     response = qa_chain.invoke({"query": user_question})
