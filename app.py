@@ -8,6 +8,10 @@ from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain.docstore.document import Document
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Page & Theme Configuration ---
 st.set_page_config(
@@ -69,7 +73,7 @@ apply_custom_styles()
 #st.title("📚 Study Bot")
 
 
-GOOGLE_API_KEY = "AIzaSyDMYArQqF4gjHTVXAVmcwEGwMG4iZDKRh4"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # --- Helper Functions & Model Initialization (No changes in logic) ---
 @st.cache_resource
