@@ -1,9 +1,9 @@
-streamlit
-langchain
-langchain-community  
-langchain-google-genai>=0.1.0
-google-generativeai>=0.4.0
-faiss-cpu
-sentence-transformers
+fastapi
+uvicorn[standard]
 python-dotenv
-pypdf
+pypdf2
+faiss-cpu
+langchain
+langchain-google-genai
+langchain-community
+google-generativeai
